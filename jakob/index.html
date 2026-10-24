@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Jakobs Zauberseite</title>
+<script src="../lib/aframe-v1.5.0.min.js"></script>
+<script src="../lib/mindar-image-aframe.prod.js"></script>
+<style>
+  html, body { margin:0; height:100%; background:#000; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #hinweis { position:fixed; left:0; right:0; bottom:calc(20px + env(safe-area-inset-bottom)); z-index:5; text-align:center; pointer-events:none; }
+  #hinweis span { display:inline-block; background:rgba(255,255,255,.92); color:#222; padding:10px 16px; border-radius:14px; font-size:16px; }
+  #ton { position:fixed; top:calc(14px + env(safe-area-inset-top)); right:14px; z-index:6; font-size:17px; font-weight:700; border:0;
+         border-radius:999px; padding:12px 18px; background:#fff; color:#222; box-shadow:0 3px 10px rgba(0,0,0,.3); }
+  #fehler { display:none; position:fixed; inset:0; z-index:7; background:#fff; color:#222; padding:32px; text-align:center; font-size:18px; line-height:1.5; }
+</style>
+</head>
+<body>
+<button id="ton">🔈 Ton an</button>
+<div id="hinweis"><span>Zeig mit dem Handy auf ein Bild mit dem Stern</span></div>
+<div id="fehler">Die Kamera ließ sich nicht starten.<br>Bitte erlaube den Kamerazugriff und lade die Seite neu.</div>
+
+<a-scene id="szene" mindar-image="imageTargetSrc: jakob.mind; autoStart: false; maxTrack: 1; uiLoading: no; uiScanning: no; uiError: no; filterMinCF: 0.0001; filterBeta: 0.001"
+         color-space="sRGB" renderer="colorManagement: true" vr-mode-ui="enabled: false"
+         device-orientation-permission-ui="enabled: false" embedded style="position:fixed; inset:0;">
+  <a-assets>
+    <video id="v0" src="video-0.mp4" preload="auto" muted playsinline webkit-playsinline crossorigin="anonymous" loop></video>
+    <video id="v1" src="video-1.mp4" preload="auto" muted playsinline webkit-playsinline crossorigin="anonymous" loop></video>
+    <video id="v2" src="video-2.mp4" preload="auto" muted playsinline webkit-playsinline crossorigin="anonymous" loop></video>
+  </a-assets>
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <a-entity class="ziel" data-v="v0" mindar-image-target="targetIndex: 0"><a-video src="#v0" width="1" height="1.5"></a-video></a-entity>
+  <a-entity class="ziel" data-v="v1" mindar-image-target="targetIndex: 1"><a-video src="#v1" width="1" height="1.5"></a-video></a-entity>
+  <a-entity class="ziel" data-v="v2" mindar-image-target="targetIndex: 2"><a-video src="#v2" width="1" height="1.5"></a-video></a-entity>
+</a-scene>
+
+<script>
+  // Startet sofort beim Öffnen (kein Los-Knopf). Videos laufen stumm los; Ton per Knopf (iPhone verlangt dafür ein Tippen).
+  const hinweis = document.getElementById('hinweis');
+  const tonKnopf = document.getElementById('ton');
+  const videos = ['v0', 'v1', 'v2'].map(id => document.getElementById(id));
+  let tonAn = false;
+
+  tonKnopf.addEventListener('click', () => {
+    tonAn = !tonAn;
+    videos.forEach(v => { v.muted = !tonAn; if (tonAn) { v.play().then(() => { if (!v.dataset.aktiv) v.pause(); }).catch(() => {}); } });
+    tonKnopf.textContent = tonAn ? '🔊 Ton aus' : '🔈 Ton an';
+  });
+
+  document.querySelectorAll('.ziel').forEach(el => {
+    const v = document.getElementById(el.dataset.v);
+    el.addEventListener('targetFound', () => {
+      hinweis.style.display = 'none';
+      v.dataset.aktiv = '1';
+      v.currentTime = 0;
+      v.muted = !tonAn;
+      v.play().catch(() => { v.muted = true; v.play(); });
+    });
+    el.addEventListener('targetLost', () => {
+      delete v.dataset.aktiv;
+      v.pause();
+      hinweis.style.display = 'block';
+    });
+  });
+
+  const szene = document.getElementById('szene');
+  szene.addEventListener('arError', () => { document.getElementById('fehler').style.display = 'block'; });
+  // Sofort starten, sobald die Szene geladen ist (?test = Start von außen, nur für den Testlauf ohne Handy)
+  const starten = () => szene.systems['mindar-image-system'].start()
+    .catch(() => { document.getElementById('fehler').style.display = 'block'; });
+  if (!location.search.includes('test')) {
+    if (szene.hasLoaded) starten(); else szene.addEventListener('loaded', starten);
+  }
+</script>
+</body>
+</html>
