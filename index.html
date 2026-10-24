@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Die Ente schwimmt los</title>
+<script src="lib/aframe-v1.5.0.min.js"></script>
+<script src="lib/mindar-image-aframe.prod.js"></script>
+<style>
+  :root { --creme:#fff8ea; --tinte:#2b3a2e; --wasser:#3d8fd1; --gelb:#f6c445; }
+  html, body { margin:0; height:100%; background:#000; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #start { position:fixed; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
+           gap:18px; padding:24px; text-align:center; background:var(--creme); color:var(--tinte); }
+  #start h1 { margin:0; font-size:28px; }
+  #start p { margin:0; max-width:320px; line-height:1.45; font-size:17px; }
+  #los { font-size:22px; font-weight:700; border:0; border-radius:999px; padding:16px 38px; background:var(--wasser); color:#fff;
+         box-shadow:0 6px 0 #2a6ea6; cursor:pointer; }
+  #los:active { transform:translateY(3px); box-shadow:0 3px 0 #2a6ea6; }
+  .klein { font-size:14px !important; opacity:.75; }
+  .klein a { color:var(--tinte); }
+  #hinweis { position:fixed; left:0; right:0; bottom:calc(24px + env(safe-area-inset-bottom)); z-index:5; display:none;
+             text-align:center; pointer-events:none; }
+  #hinweis span { display:inline-block; background:rgba(255,248,234,.92); color:var(--tinte); padding:10px 16px;
+                  border-radius:14px; font-size:16px; }
+  #rahmen { position:fixed; inset:12% 18%; z-index:4; border:4px dashed rgba(255,255,255,.8); border-radius:18px; display:none;
+            pointer-events:none; }
+</style>
+</head>
+<body>
+<div id="start">
+  <div style="font-size:64px">🦆</div>
+  <h1>Die Ente schwimmt los</h1>
+  <p>Tippe auf „Los“ und erlaube die Kamera. Dann halte dein Handy so über das Bild, dass du es ganz siehst.</p>
+  <button id="los">Los!</button>
+  <p class="klein">Ton an, dann hörst du die Ente.<br>Klappt es nicht? <a href="ente.mp4">Video direkt ansehen</a></p>
+</div>
+<div id="rahmen"></div>
+<div id="hinweis"><span>Halte das Handy über das ganze Bild</span></div>
+
+<a-scene id="szene" mindar-image="imageTargetSrc: ente.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no; filterMinCF: 0.0001; filterBeta: 0.001"
+         color-space="sRGB" renderer="colorManagement: true" vr-mode-ui="enabled: false"
+         device-orientation-permission-ui="enabled: false" embedded style="position:fixed; inset:0;">
+  <a-assets>
+    <video id="vid" src="ente.mp4" preload="auto" loop playsinline webkit-playsinline crossorigin="anonymous"></video>
+  </a-assets>
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <a-entity id="ziel" mindar-image-target="targetIndex: 0">
+    <a-video src="#vid" width="1" height="1.5" position="0 0 0"></a-video>
+  </a-entity>
+</a-scene>
+
+<script>
+  const vid = document.getElementById('vid');
+  const szene = document.getElementById('szene');
+  const ziel = document.getElementById('ziel');
+  const hinweis = document.getElementById('hinweis');
+  const rahmen = document.getElementById('rahmen');
+  let gesehen = false;
+
+  document.getElementById('los').addEventListener('click', async () => {
+    // Ton freischalten: iOS erlaubt Wiedergabe mit Ton nur direkt nach einem Tippen
+    try { vid.muted = false; await vid.play(); vid.pause(); vid.currentTime = 0; } catch (e) { vid.muted = true; }
+    document.getElementById('start').style.display = 'none';
+    hinweis.style.display = 'block';
+    rahmen.style.display = 'block';
+    const ar = szene.systems['mindar-image-system'];
+    try { await ar.start(); } catch (e) {
+      hinweis.innerHTML = '<span>Kamera nicht verfügbar. <a href="ente.mp4">Video direkt ansehen</a></span>';
+      hinweis.style.pointerEvents = 'auto';
+    }
+  });
+
+  ziel.addEventListener('targetFound', () => {
+    hinweis.style.display = 'none';
+    rahmen.style.display = 'none';
+    if (!gesehen) { vid.currentTime = 0; gesehen = true; }
+    vid.play().catch(() => { vid.muted = true; vid.play(); });
+  });
+  ziel.addEventListener('targetLost', () => {
+    vid.pause();
+    hinweis.style.display = 'block';
+  });
+</script>
+</body>
+</html>
